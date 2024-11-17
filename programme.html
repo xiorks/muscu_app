@@ -1,0 +1,200 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Planning de Musculation</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            margin: 20px;
+            text-align: center;
+        }
+        .button {
+            margin: 10px;
+            padding: 10px 20px;
+            font-size: 16px;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+            transition: background-color 0.3s ease;
+        }
+        .button.active {
+            background-color: #4CAF50;
+            color: white;
+        }
+        .button.active:hover {
+            background-color: #45a049;
+        }
+        .button.disabled {
+            background-color: #d3d3d3;
+            color: #808080;
+            cursor: not-allowed;
+        }
+        .button.muscle {
+            background-color: #007BFF;
+            color: white;
+        }
+        .button.muscle:hover {
+            background-color: #0056b3;
+        }
+        .screen {
+            display: none;
+        }
+        .active-screen {
+            display: block;
+        }
+        .timer-container {
+            margin: 10px 0;
+            font-size: 16px;
+            color: #ff4500;
+            text-align: center;
+        }
+        .timer-container button {
+            margin: 5px;
+            padding: 5px 10px;
+            font-size: 14px;
+            cursor: pointer;
+        }
+        .series-container {
+            margin: 10px 0;
+            display: flex;
+            justify-content: center;
+            gap: 10px;
+        }
+        .series-container input {
+            transform: scale(1.5);
+        }
+    </style>
+</head>
+<body>
+    <div id="home-screen" class="screen active-screen">
+        <h1>Planning de Musculation</h1>
+        <p>Choisis une séance :</p>
+        <button class="button active" onclick="showMuscles('Séance 1')">Séance 1</button>
+        <button class="button active" onclick="showMuscles('Séance 2')">Séance 2</button>
+        <button class="button active" onclick="showMuscles('Séance 3')">Séance 3</button>
+    </div>
+
+    <div id="muscle-screen" class="screen">
+        <div id="muscle-list"></div>
+        <button class="button active" onclick="goBack()">Revenir en arrière</button>
+    </div>
+
+    <div id="exercise-screen" class="screen">
+        <div id="exercise-list"></div>
+        <button class="button active" onclick="goBack()">Revenir en arrière</button>
+    </div>
+
+    <script>
+        const sessions = {
+            "Séance 1": {
+                "Pectoraux": ["Développé couché", "Ecarté"],
+                "Dos": ["Tirage vertical", "Tractions", "Rowing haltère"],
+                "Epaules": ["Développé militaire", "Elévations latérales"],
+            },
+            "Séance 2": {
+                "Jambes": ["Leg extension", "Presse", "Squat", "Curl allongé"],
+                "Abdominaux": ["Crunchs", "Gainage", "Relevés de jambes"],
+            },
+            "Séance 3": {
+                "Biceps": ["Curls banc", "Curl marteau", "Curl biceps"],
+                "Triceps": ["Extensions triceps poulie", "Extension nuque", "Haltère au front"],
+            }
+        };
+
+        const timers = {}; // Stockage des minuteurs
+        const historyStack = [];
+
+        function showScreen(screenId) {
+            document.querySelectorAll('.screen').forEach(screen => screen.classList.remove('active-screen'));
+            document.getElementById(screenId).classList.add('active-screen');
+        }
+
+        function navigateTo(screenId) {
+            const currentScreen = document.querySelector('.active-screen');
+            if (currentScreen) historyStack.push(currentScreen.id);
+            showScreen(screenId);
+        }
+
+        function goBack() {
+            const previousScreenId = historyStack.pop();
+            if (previousScreenId) showScreen(previousScreenId);
+        }
+
+        function showMuscles(session) {
+            const muscleList = document.getElementById("muscle-list");
+            muscleList.innerHTML = `<h2>${session}</h2>`;
+            Object.keys(sessions[session]).forEach(muscle => {
+                muscleList.innerHTML += `
+                    <div>
+                        <button class="button muscle" onclick="showExercises('${session}', '${muscle}')">${muscle}</button>
+                        <div class="timer-container">
+                            <p>Timer pour ${muscle} :</p>
+                            <div id="timer-${muscle}">00:00</div>
+                            <button class="button active" onclick="startTimer('${muscle}')">Démarrer</button>
+                            <button class="button active" onclick="restartTimer('${muscle}')">Restart</button>
+                            <button class="button active" onclick="stopTimer('${muscle}')">Arrêter</button>
+                        </div>
+                    </div>
+                `;
+            });
+            navigateTo("muscle-screen");
+        }
+
+        function showExercises(session, muscle) {
+            const exerciseList = document.getElementById("exercise-list");
+            exerciseList.innerHTML = `<h2>Exercices pour ${muscle} (${session})</h2>`;
+            sessions[session][muscle].forEach(exercise => {
+                exerciseList.innerHTML += `
+                    <div>
+                        <button class="button disabled">${exercise}</button>
+                        <div class="series-container">
+                            ${[...Array(4)].map((_, i) => `
+                                <label>
+                                    <input type="checkbox" id="series-${exercise}-${i}" />
+                                    Série ${i + 1}
+                                </label>
+                            `).join('')}
+                        </div>
+                        <div class="timer-container">
+                            <p>Timer pour ${exercise} :</p>
+                            <div id="timer-${exercise}">00:00</div>
+                            <button class="button active" onclick="startTimer('${exercise}')">Démarrer</button>
+                            <button class="button active" onclick="restartTimer('${exercise}')">Restart</button>
+                            <button class="button active" onclick="stopTimer('${exercise}')">Arrêter</button>
+                        </div>
+                    </div>
+                `;
+            });
+            navigateTo("exercise-screen");
+        }
+
+        function startTimer(id) {
+            if (timers[id]) return;
+            let seconds = 0;
+
+            function updateTimer() {
+                seconds++;
+                const minutes = Math.floor(seconds / 60);
+                const remainingSeconds = seconds % 60;
+                document.getElementById(`timer-${id}`).textContent = 
+                    `${String(minutes).padStart(2, '0')}:${String(remainingSeconds).padStart(2, '0')}`;
+            }
+
+            timers[id] = setInterval(updateTimer, 1000);
+        }
+
+        function restartTimer(id) {
+            stopTimer(id);
+            startTimer(id);
+        }
+
+        function stopTimer(id) {
+            clearInterval(timers[id]);
+            timers[id] = null;
+            document.getElementById(`timer-${id}`).textContent = "00:00";
+        }
+    </script>
+</body>
+</html>
